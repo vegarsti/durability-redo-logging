@@ -64,5 +64,6 @@ func main() {
 	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
 	db.set("abc", "def")
 	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
+	panic("")
 	db.flush()
 }
