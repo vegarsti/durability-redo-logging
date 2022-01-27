@@ -3,56 +3,85 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 )
 
+type SetCommand struct {
+	key   string
+	value string
+}
+
+func (sc SetCommand) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`{"Set":["%s","%s"]}`, sc.key, sc.value)), nil
+}
+
+type DeleteCommand struct {
+	key string
+}
+
+func (dc DeleteCommand) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`{"Delete":"%s"}`, dc.key)), nil
+}
+
 type DB struct {
-	data     map[string]string
+	log      io.Writer
 	filename string
 }
 
 func NewDB(filename string) (*DB, error) {
-	bs, err := os.ReadFile(filename)
+	f, err := os.Open(filename)
 	if os.IsNotExist(err) {
+		f, err := os.Create(filename)
+		if err != nil {
+			return nil, fmt.Errorf("create: %w", err)
+		}
 		return &DB{
-			data:     make(map[string]string),
+			log:      f,
 			filename: filename,
 		}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read: %w", err)
 	}
-	data := make(map[string]string)
-	if err := json.Unmarshal(bs, &data); err != nil {
-		return nil, fmt.Errorf("unmarshal: %w", err)
-	}
 	return &DB{
-		data:     data,
+		log:      f,
 		filename: filename,
 	}, nil
 }
 
-func (d *DB) get(k string) string {
-	return d.data[k]
-}
-
 func (d *DB) set(k string, v string) {
-	d.data[k] = v
-	d.flush() // Ignoring error return value here!
+	command := SetCommand{
+		key:   k,
+		value: v,
+	}
+	d.applySetCommand(command)
 }
 
 func (d *DB) delete(k string) {
-	delete(d.data, k)
+	command := DeleteCommand{
+		key: k,
+	}
+	d.applyDeleteCommand(command)
 }
 
-func (d *DB) flush() error {
-	bs, err := json.Marshal(d.data)
+func (d *DB) applySetCommand(command SetCommand) error {
+	bs, err := json.Marshal(command)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	if err := os.WriteFile(d.filename, bs, 0644); err != nil {
-		return fmt.Errorf("write: %w", err)
+	d.log.Write(bs)
+	d.log.Write([]byte("\n"))
+	return nil
+}
+
+func (d *DB) applyDeleteCommand(command DeleteCommand) error {
+	bs, err := json.Marshal(command)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
 	}
+	d.log.Write(bs)
+	d.log.Write([]byte("\n"))
 	return nil
 }
 
@@ -62,7 +91,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "NewDB: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
-	db.set("abc", "def")
-	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
+	db.set("foo", "a")
+	db.set("bar", "b")
+	db.set("baz", "c")
+	db.delete("bar")
 }
