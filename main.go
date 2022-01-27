@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 type Command struct {
@@ -127,55 +128,16 @@ func (d *DB) replayLog() error {
 }
 
 func main() {
-	db, err := NewDB("db_data")
+	db, err := NewDB("logfile")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "NewDB: %v\n", err)
 		os.Exit(1)
 	}
-	// Get before writes
-	foo, err := db.get("foo")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: %v\n", err)
-		os.Exit(1)
+	t := time.Now()
+	writes := 0
+	for time.Since(t).Milliseconds() < 10000 {
+		writes++
+		db.set("foo", "bar")
 	}
-	fmt.Printf("foo = '%s'\n", foo)
-	bar, err := db.get("bar")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("bar = '%s'\n", bar)
-	baz, err := db.get("baz")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("baz = '%s'\n", baz)
-
-	// Write
-	fmt.Println("Performing writes...")
-	db.set("foo", "a")
-	db.set("bar", "b")
-	db.set("baz", "c")
-	db.delete("bar")
-
-	// Get after writes
-	foo, err = db.get("foo")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("foo = '%s'\n", foo)
-	bar, err = db.get("bar")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("bar = '%s'\n", bar)
-	baz, err = db.get("baz")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("baz = '%s'\n", baz)
+	fmt.Printf("performed %d writes in 10 seconds\n", writes)
 }
