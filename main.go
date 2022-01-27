@@ -32,6 +32,10 @@ func NewDB(filename string) (*DB, error) {
 	}, nil
 }
 
+func (d *DB) get(k string) string {
+	return d.data[k]
+}
+
 func (d *DB) set(k string, v string) {
 	d.data[k] = v
 }
@@ -45,7 +49,9 @@ func (d *DB) flush() error {
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	fmt.Println(string(bs))
+	if err := os.WriteFile(d.filename, bs, 0644); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
 	return nil
 }
 
@@ -55,6 +61,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "NewDB: %v\n", err)
 		os.Exit(1)
 	}
-	db.set("foo", "bar")
+	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
+	db.set("abc", "def")
+	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
 	db.flush()
 }
