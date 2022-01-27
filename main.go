@@ -31,6 +31,7 @@ func (dc DeleteCommand) MarshalJSON() ([]byte, error) {
 
 type DB struct {
 	log      *os.File
+	memtable map[string]string
 	filename string
 }
 
@@ -41,35 +42,17 @@ func NewDB(filename string) (*DB, error) {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 	f.Sync()
-	return &DB{
+	db := &DB{
 		log:      f,
+		memtable: make(map[string]string),
 		filename: filename,
-	}, nil
+	}
+	db.replayLog()
+	return db, nil
 }
 
 func (d *DB) get(k string) (string, error) {
-	f, err := os.Open(d.filename)
-	if err != nil {
-		return "", fmt.Errorf("open: %w", err)
-	}
-	defer f.Close()
-	result := ""
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		x := scanner.Bytes()
-		var cmd Command
-		json.Unmarshal(x, &cmd)
-		if len(cmd.Set) == 2 { // is Set command
-			if k == cmd.Set[0] {
-				result = cmd.Set[1]
-			}
-		} else { // is Delete
-			if k == cmd.Delete {
-				result = ""
-			}
-		}
-	}
-	return result, nil
+	return d.memtable[k], nil
 }
 
 func (d *DB) set(k string, v string) {
@@ -78,6 +61,7 @@ func (d *DB) set(k string, v string) {
 		value: v,
 	}
 	d.applySetCommand(command)
+	d.applySetCommandToMemtable(command)
 }
 
 func (d *DB) delete(k string) {
@@ -85,6 +69,7 @@ func (d *DB) delete(k string) {
 		key: k,
 	}
 	d.applyDeleteCommand(command)
+	d.applyDeleteCommandToMemtable(command)
 }
 
 func (d *DB) applySetCommand(command SetCommand) error {
@@ -106,6 +91,38 @@ func (d *DB) applyDeleteCommand(command DeleteCommand) error {
 	d.log.Write(bs)
 	d.log.Write([]byte("\n"))
 	d.log.Sync()
+	return nil
+}
+
+func (d *DB) applySetCommandToMemtable(command SetCommand) error {
+	d.memtable[command.key] = command.value
+	return nil
+}
+
+func (d *DB) applyDeleteCommandToMemtable(command DeleteCommand) error {
+	delete(d.memtable, command.key)
+	return nil
+}
+
+func (d *DB) replayLog() error {
+	f, err := os.Open(d.filename)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		var cmd Command
+		json.Unmarshal(scanner.Bytes(), &cmd)
+		if len(cmd.Set) == 2 { // is Set command
+			k := cmd.Set[0]
+			v := cmd.Set[1]
+			d.applySetCommandToMemtable(SetCommand{key: k, value: v})
+		} else { // is Delete
+			k := cmd.Delete
+			d.applyDeleteCommandToMemtable(DeleteCommand{key: k})
+		}
+	}
 	return nil
 }
 
