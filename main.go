@@ -40,6 +40,7 @@ func NewDB(filename string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
+	f.Sync()
 	return &DB{
 		log:      f,
 		filename: filename,
