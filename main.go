@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 )
 
@@ -31,24 +30,15 @@ func (dc DeleteCommand) MarshalJSON() ([]byte, error) {
 }
 
 type DB struct {
-	log      io.Writer
+	log      *os.File
 	filename string
 }
 
 func NewDB(filename string) (*DB, error) {
-	f, err := os.Open(filename)
-	if os.IsNotExist(err) {
-		f, err := os.Create(filename)
-		if err != nil {
-			return nil, fmt.Errorf("create: %w", err)
-		}
-		return &DB{
-			log:      f,
-			filename: filename,
-		}, nil
-	}
+	// Open file for append writes, create file if it doesn't exist
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("read: %w", err)
+		return nil, fmt.Errorf("open: %w", err)
 	}
 	return &DB{
 		log:      f,
