@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 )
+
+type Command struct {
+	Set    []string
+	Delete string
+}
 
 type SetCommand struct {
 	key   string
@@ -50,6 +56,31 @@ func NewDB(filename string) (*DB, error) {
 	}, nil
 }
 
+func (d *DB) get(k string) (string, error) {
+	f, err := os.Open(d.filename)
+	if err != nil {
+		return "", fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+	result := ""
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		x := scanner.Bytes()
+		var cmd Command
+		json.Unmarshal(x, &cmd)
+		if len(cmd.Set) == 2 { // is Set command
+			if k == cmd.Set[0] {
+				result = cmd.Set[1]
+			}
+		} else { // is Delete
+			if k == cmd.Delete {
+				result = ""
+			}
+		}
+	}
+	return result, nil
+}
+
 func (d *DB) set(k string, v string) {
 	command := SetCommand{
 		key:   k,
@@ -91,8 +122,50 @@ func main() {
 		fmt.Fprintf(os.Stderr, "NewDB: %v\n", err)
 		os.Exit(1)
 	}
+	// Get before writes
+	foo, err := db.get("foo")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("foo = '%s'\n", foo)
+	bar, err := db.get("bar")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("bar = '%s'\n", bar)
+	baz, err := db.get("baz")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("baz = '%s'\n", baz)
+
+	// Write
+	fmt.Println("Performing writes...")
 	db.set("foo", "a")
 	db.set("bar", "b")
 	db.set("baz", "c")
 	db.delete("bar")
+
+	// Get after writes
+	foo, err = db.get("foo")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("foo = '%s'\n", foo)
+	bar, err = db.get("bar")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("bar = '%s'\n", bar)
+	baz, err = db.get("baz")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("baz = '%s'\n", baz)
 }
