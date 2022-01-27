@@ -93,6 +93,7 @@ func (d *DB) applySetCommand(command SetCommand) error {
 	}
 	d.log.Write(bs)
 	d.log.Write([]byte("\n"))
+	d.log.Sync()
 	return nil
 }
 
@@ -103,6 +104,7 @@ func (d *DB) applyDeleteCommand(command DeleteCommand) error {
 	}
 	d.log.Write(bs)
 	d.log.Write([]byte("\n"))
+	d.log.Sync()
 	return nil
 }
 
