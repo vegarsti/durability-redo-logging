@@ -42,7 +42,7 @@ func NewDB(filename string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
-	f.Sync()
+	// f.Sync()
 	db := &DB{
 		log:      f,
 		memtable: make(map[string]string),
@@ -80,7 +80,7 @@ func (d *DB) applySetCommand(command SetCommand) error {
 	}
 	d.log.Write(bs)
 	d.log.Write([]byte("\n"))
-	d.log.Sync()
+	// d.log.Sync()
 	return nil
 }
 
@@ -91,7 +91,7 @@ func (d *DB) applyDeleteCommand(command DeleteCommand) error {
 	}
 	d.log.Write(bs)
 	d.log.Write([]byte("\n"))
-	d.log.Sync()
+	// d.log.Sync()
 	return nil
 }
 
