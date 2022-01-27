@@ -38,6 +38,7 @@ func (d *DB) get(k string) string {
 
 func (d *DB) set(k string, v string) {
 	d.data[k] = v
+	d.flush() // Ignoring error return value here!
 }
 
 func (d *DB) delete(k string) {
@@ -64,6 +65,4 @@ func main() {
 	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
 	db.set("abc", "def")
 	fmt.Printf("Value of abc is '%s'\n", db.get("abc"))
-	panic("")
-	db.flush()
 }
