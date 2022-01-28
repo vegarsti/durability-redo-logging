@@ -111,16 +111,20 @@ func (d *DB) delete(k string) error {
 	return nil
 }
 
+func (d *DB) writeToLog(bs []byte) error {
+	if _, err := d.log.Write(append(bs, '\n')); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	return nil
+}
+
 func (d *DB) applySetCommandToLog(command SetCommand) error {
 	bs, err := json.Marshal(command)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	if _, err := d.log.Write(bs); err != nil {
-		return fmt.Errorf("write command: %w", err)
-	}
-	if _, err := d.log.Write([]byte("\n")); err != nil {
-		return fmt.Errorf("write newline: %w", err)
+	if err := d.writeToLog(bs); err != nil {
+		return fmt.Errorf("writeToLog: %w", err)
 	}
 	if err := d.log.Sync(); err != nil {
 		return fmt.Errorf("sync: %w", err)
@@ -133,11 +137,8 @@ func (d *DB) applyDeleteCommandToLog(command DeleteCommand) error {
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	if _, err := d.log.Write(bs); err != nil {
-		return fmt.Errorf("write command: %w", err)
-	}
-	if _, err := d.log.Write([]byte("\n")); err != nil {
-		return fmt.Errorf("write newline: %w", err)
+	if err := d.writeToLog(bs); err != nil {
+		return fmt.Errorf("writeToLog: %w", err)
 	}
 	if err := d.log.Sync(); err != nil {
 		return fmt.Errorf("sync: %w", err)
