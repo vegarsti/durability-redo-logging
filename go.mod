@@ -1,3 +1,3 @@
-module log-memtable
+module redolog
 
 go 1.17
